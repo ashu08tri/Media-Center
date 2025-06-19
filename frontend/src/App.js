@@ -16,6 +16,7 @@ import SearchResults from './pages/SearchResults';
 import PublicGalleriesPage from './pages/PublicGalleriesPage'; // Added for public galleries page
 import PublicVideosPage from './pages/PublicVideosPage'; // Added for public videos page
 import About from './pages/About';
+import ShortsPage from './pages/ShortsPage';
 
 // Admin Pages
 import AdminDashboard from './admin/AdminDashboard';
@@ -62,6 +63,7 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/term-of-use" element={<TermOfUse />} />
               <Route path="/policies" element={<Policies />} />
+              <Route path="/shorts" element={<ShortsPage />} />
 
               {/* Admin Routes */}
               <Route path="/admin/dashboard" element={

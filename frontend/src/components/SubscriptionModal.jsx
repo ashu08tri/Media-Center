@@ -40,7 +40,7 @@ export default function SubscriptionModal({ open, handleClose }) {
 
     setLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/subscribe", { email, type });
+      await axios.post("https://api.kisansatta.com/api/subscribe", { email, type });
       setFeedback({ success: true, error: "" });
       setEmail("");
       setType("digital");

@@ -13,6 +13,7 @@ const uploadRoutes = require('./routes/upload.routes');
 const searchRoutes = require('./routes/search.routes');
 const subsRoutes = require('./routes/subscribe.routes');
 const advertiseRoutes = require('./routes/advertise.routes');
+const youtubeRoutes = require('./routes/youtube.routes');
 
 // Configure environment variables
 dotenv.config();
@@ -43,6 +44,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api', subsRoutes);
 app.use('/api/advertise', advertiseRoutes);
+app.use('/api/youtube', youtubeRoutes);
 
 // Base route for API health check
 app.get('/api', (req, res) => {

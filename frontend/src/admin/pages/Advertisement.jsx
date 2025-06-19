@@ -25,7 +25,7 @@ export default function Advertisement() {
 
     const fetchAds = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/advertise?page=${page}`);
+            const res = await axios.get(`https://api.kisansatta.com/api/advertise?page=${page}`);
             setAds(res.data.ads);
             setTotalPages(res.data.pages);
         } catch (err) {
@@ -34,12 +34,12 @@ export default function Advertisement() {
     };
 
     const approveAd = async (id) => {
-        await axios.patch(`http://localhost:5000/api/advertise/edit/${id}`);
+        await axios.patch(`https://api.kisansatta.com/api/advertise/edit/${id}`);
         fetchAds();
     };
 
     const deleteAd = async (id) => {
-        await axios.delete(`http://localhost:5000/api/advertise/delete/${id}`);
+        await axios.delete(`https://api.kisansatta.com/api/advertise/delete/${id}`);
         fetchAds();
     };
 

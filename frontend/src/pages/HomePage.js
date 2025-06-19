@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { fetchArticles, fetchGalleries, fetchVideos, searchContent } from '../utils/api';
+import { fetchArticles, fetchGalleries, fetchVideos, searchContent, fetchYoutubeShorts } from '../utils/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ArticleCard from '../components/ArticleCard';
@@ -116,6 +116,15 @@ const ShortCardImage = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
+`;
+
+const ShortCardVideo = styled.iframe`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
 `;
 
 const ShortCardReelIcon = styled.div`
@@ -992,12 +1001,12 @@ const getCloudinaryVideoThumbnail = (videoUrl) => {
     if (parts.length === 2) {
       const baseUrl = parts[0] + uploadMarker;
       const versionAndPath = parts[1]; // e.g., v1748523283/media-center/videos/zlgdxcvaf1zgyxzrnqrz.mp4
-      
+
       // Remove original extension for the public_id part
       const pathWithoutExtension = versionAndPath.substring(0, versionAndPath.lastIndexOf('.'));
-      
+
       const transformations = 'w_400,h_225,c_pad,b_auto,f_auto,q_auto';
-      
+
       // Construct the new URL: baseUrl + transformations + / + pathWithoutExtension + .jpg
       const transformedUrl = `${baseUrl}${transformations}/${pathWithoutExtension}.jpg`;
       return transformedUrl;
@@ -1272,6 +1281,10 @@ const shortsData = [
   },
 ];
 
+const getYouTubeThumbnail = (videoId) => {
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+};
+
 const HomePage = () => {
   const explainsSectionData = {
     mainArticle: { id: 'e1', image: 'https://picsum.photos/seed/envCrisis/500/350', title: 'Has the environmental crisis in India exacerbated? | Explained', author: 'TIKENDER SINGH PANWAR' },
@@ -1287,16 +1300,19 @@ const HomePage = () => {
   const query = useQuery();
   const searchQuery = query.get('search') || '';
   const navigate = useNavigate();
-  
+
   const [topPicksArticles, setTopPicksArticles] = useState([]);
   const [premiumArticles, setPremiumArticles] = useState([]); // This will be populated by API, dummy data used for now for styling
   const [mainHeroArticle, setMainHeroArticle] = useState(null);
   const [latestNewsArticlesColumn, setLatestNewsArticlesColumn] = useState([]);
+  const [youtubeShorts, setYoutubeShorts] = useState([]);
   const [galleries, setGalleries] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
+  const [hoveredShortId, setHoveredShortId] = useState(null);
+
   // Search related states
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState({ articles: [], galleries: [], videos: [] });
@@ -1304,17 +1320,17 @@ const HomePage = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
-  
+
   const fetchSearchResults = useCallback(async (query) => {
     if (!query.trim()) {
       setIsSearching(false);
       return;
     }
-    
+
     setSearchLoading(true);
     setSearchError(null);
     setIsSearching(true);
-    
+
     try {
       const response = await searchContent(query);
       setSearchResults(response.data.results);
@@ -1326,7 +1342,7 @@ const HomePage = () => {
       setSearchLoading(false);
     }
   }, []);
-  
+
   // Handle URL search parameter
   useEffect(() => {
     if (searchQuery) {
@@ -1335,37 +1351,46 @@ const HomePage = () => {
       setIsSearching(false);
     }
   }, [searchQuery, fetchSearchResults]);
-  
+
   // Listen for custom search event from Header
   useEffect(() => {
     const handlePerformSearch = (event) => {
       fetchSearchResults(event.detail.query);
     };
-    
+
     window.addEventListener('performSearch', handlePerformSearch);
-    
+
     return () => {
       window.removeEventListener('performSearch', handlePerformSearch);
     };
   }, [fetchSearchResults]);
-  
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch latest articles - sorted by most recently updated/created
         const articlesRes = await fetchArticles({ limit: 15, sort: '-updatedAt' });
         const articlesData = articlesRes.data.articles;
-        
+
         // Fetch galleries
         const galleriesRes = await fetchGalleries({ limit: 4 });
         const galleriesData = galleriesRes.data.galleries;
-        
+
         // Fetch videos
         const videosRes = await fetchVideos({ limit: 3 });
         const videosData = videosRes.data.videos;
-        
+
+        try {
+          const shortsRes = await fetchYoutubeShorts({ limit: 6 });
+          setYoutubeShorts(shortsRes.data.videos);
+        } catch (shortsError) {
+          console.error('Error fetching YouTube shorts:', shortsError);
+          // Set empty array if YouTube API fails
+          setYoutubeShorts([]);
+        }
+
         setTopPicksArticles(articlesData.filter(a => a.tags?.includes('top pick') || a.isTopPick).slice(0, 5));
         setGalleries(galleriesData.slice(0, 6));
         setVideos(videosData.slice(0, 4));
@@ -1379,7 +1404,7 @@ const HomePage = () => {
 
         const latestNews = articlesData.filter(a => a._id !== mainArticle?._id && !premium.find(p => p._id === a._id)).slice(0, 6);
         setLatestNewsArticlesColumn(latestNews);
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching homepage data:', err);
@@ -1387,10 +1412,10 @@ const HomePage = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
-  
+
   if (loading) {
     return (
       <HomeContainer>
@@ -1402,7 +1427,7 @@ const HomePage = () => {
       </HomeContainer>
     );
   }
-  
+
   if (error) {
     return (
       <HomeContainer>
@@ -1416,15 +1441,15 @@ const HomePage = () => {
       </HomeContainer>
     );
   }
-  
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
-  
+
   const handleSearch = (newQuery) => {
     fetchSearchResults(newQuery);
   };
-  
+
   const clearSearch = () => {
     setIsSearching(false);
     // Update URL without search parameter without page reload
@@ -1477,11 +1502,11 @@ const HomePage = () => {
                   {article.tags && article.tags.length > 0 && (
                     <Box mt={1} display="flex" gap={0.5} flexWrap="wrap">
                       {article.tags.slice(0, 3).map((tag, index) => (
-                        <Chip 
-                          key={index} 
-                          label={tag} 
-                          size="small" 
-                          variant="outlined" 
+                        <Chip
+                          key={index}
+                          label={tag}
+                          size="small"
+                          variant="outlined"
                           sx={{ marginRight: 0.5, marginBottom: 0.5 }}
                         />
                       ))}
@@ -1534,10 +1559,10 @@ const HomePage = () => {
                     {new Date(gallery.createdAt).toLocaleDateString()}
                   </div>
                   <Box mt={1}>
-                    <Chip 
-                      label={`${gallery.images.length} images`} 
-                      size="small" 
-                      variant="outlined" 
+                    <Chip
+                      label={`${gallery.images.length} images`}
+                      size="small"
+                      variant="outlined"
                       icon={<PhotoLibraryIcon fontSize="small" />}
                     />
                   </Box>
@@ -1614,9 +1639,9 @@ const HomePage = () => {
           <Typography variant="body2" color="textSecondary">
             We couldn't find any content matching "{searchQuery}"
           </Typography>
-          <Button 
-            variant="outlined" 
-            color="primary" 
+          <Button
+            variant="outlined"
+            color="primary"
             sx={{ mt: 2 }}
             onClick={clearSearch}
           >
@@ -1713,8 +1738,8 @@ const HomePage = () => {
               <Typography variant="h4" component="h1" gutterBottom>
                 Search Results
               </Typography>
-              <SearchBar 
-                initialQuery={searchQuery} 
+              <SearchBar
+                initialQuery={searchQuery}
                 onSearch={handleSearch}
               />
               {!searchLoading && searchCounts.total > 0 && (
@@ -1722,8 +1747,8 @@ const HomePage = () => {
                   Found {searchCounts.total} results for "{searchQuery}"
                 </Typography>
               )}
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 color="primary"
                 onClick={clearSearch}
                 sx={{ alignSelf: 'flex-start' }}
@@ -1731,9 +1756,9 @@ const HomePage = () => {
                 Show All Content
               </Button>
             </SearchHeader>
-            
+
             <Divider />
-            
+
             <Tabs
               value={activeTab}
               onChange={handleTabChange}
@@ -1743,28 +1768,28 @@ const HomePage = () => {
               scrollButtons="auto"
               aria-label="search results tabs"
             >
-              <Tab 
-                label={`All (${searchCounts.total})`} 
-                icon={<SearchIcon />} 
+              <Tab
+                label={`All (${searchCounts.total})`}
+                icon={<SearchIcon />}
                 iconPosition="start"
               />
-              <Tab 
-                label={`Articles (${searchCounts.articles})`} 
-                icon={<ArticleIcon />} 
+              <Tab
+                label={`Articles (${searchCounts.articles})`}
+                icon={<ArticleIcon />}
                 iconPosition="start"
               />
-              <Tab 
-                label={`Galleries (${searchCounts.galleries})`} 
-                icon={<PhotoLibraryIcon />} 
+              <Tab
+                label={`Galleries (${searchCounts.galleries})`}
+                icon={<PhotoLibraryIcon />}
                 iconPosition="start"
               />
-              <Tab 
-                label={`Videos (${searchCounts.videos})`} 
-                icon={<VideoLibraryIcon />} 
+              <Tab
+                label={`Videos (${searchCounts.videos})`}
+                icon={<VideoLibraryIcon />}
                 iconPosition="start"
               />
             </Tabs>
-            
+
             <SearchResultsContainer>
               {searchLoading ? (
                 <Box display="flex" justifyContent="center" p={4}>
@@ -1858,14 +1883,14 @@ const HomePage = () => {
             <NewsGrid>
               {latestNewsArticlesColumn.slice(0, 6).map(article => {
                 // Check if article is new (less than 24 hours old)
-                const isNew = article.createdAt && 
+                const isNew = article.createdAt &&
                   differenceInHours(new Date(), parseISO(article.createdAt)) < 24;
-                
+
                 // Check if article was recently updated (less than 24 hours ago but not new)
                 const wasUpdated = article.updatedAt && article.createdAt &&
-                  differenceInHours(parseISO(article.updatedAt), parseISO(article.createdAt)) > 1 && 
+                  differenceInHours(parseISO(article.updatedAt), parseISO(article.createdAt)) > 1 &&
                   differenceInHours(new Date(), parseISO(article.updatedAt)) < 72;
-                  
+
                 // Add indicator badge to article metadata
                 const enhancedArticle = {
                   ...article,
@@ -1881,10 +1906,10 @@ const HomePage = () => {
                     </span>
                   ) : null
                 };
-                
+
                 return (
-                  <ArticleCard 
-                    key={article._id} 
+                  <ArticleCard
+                    key={article._id}
                     article={enhancedArticle}
                     variant="default"
                     showExcerpt={true}
@@ -1915,7 +1940,7 @@ const HomePage = () => {
             {/* Old 'Media Center Explains' section removed. The new one is rendered after TopPicksCarousel. */}
 
             {/* Ad Banner */}
-            <AdBanner variant="mediumRectangle" /> 
+            <AdBanner variant="mediumRectangle" />
 
             {/* New Top Videos Section */}
             {videos.length > 0 && (
@@ -1927,9 +1952,9 @@ const HomePage = () => {
                 </SectionTitle>
                 <TopVideosLayout>
                   <MainVideoWrapper onClick={() => navigate(`/video/${videos[0]._id}`)}>
-                    <VideoThumbnail 
-                      className="video-thumbnail-main" 
-                      image={videos[0].thumbnail} 
+                    <VideoThumbnail
+                      className="video-thumbnail-main"
+                      image={videos[0].thumbnail}
                       videoUrl={videos[0].videoUrl}
                     />
                     <div className="play-icon-overlay"></div> {/* Added play icon overlay div */}
@@ -1938,10 +1963,10 @@ const HomePage = () => {
                   <VideoListWrapper>
                     {videos.slice(1, 4).map(video => (
                       <VideoListItemStyled key={video._id} onClick={() => navigate(`/video/${video._id}`)}>
-                        <VideoThumbnail 
-                          className="video-thumbnail-list" 
-                          image={video.thumbnail} 
-                          videoUrl={video.videoUrl} 
+                        <VideoThumbnail
+                          className="video-thumbnail-list"
+                          image={video.thumbnail}
+                          videoUrl={video.videoUrl}
                         />
                         <VideoTitle className="video-title-list">{video.title}</VideoTitle>
                       </VideoListItemStyled>
@@ -2000,23 +2025,54 @@ const HomePage = () => {
             </ExplainsWrapper>
 
             {/* Shorts Section */}
+            {/* Shorts Section */}
             <ShortsWrapper>
               <ShortsHeader>
                 <ShortsTitleLogo>MC</ShortsTitleLogo>
                 <ShortsTitleText>Shorts</ShortsTitleText>
               </ShortsHeader>
               <ShortsGrid>
-                {shortsData.map(short => (
-                  <ShortCard key={short.id} to={`/short/${short.id}`}>
-                    <ShortCardImageContainer>
-                      <ShortCardImage src={short.image} alt={short.caption} />
-                      <ShortCardReelIcon>
-                        <SmartDisplayOutlinedIcon />
-                      </ShortCardReelIcon>
-                    </ShortCardImageContainer>
-                    <ShortCardCaption>{short.caption}</ShortCardCaption>
-                  </ShortCard>
-                ))}
+                {youtubeShorts.length > 0 ? (
+                  youtubeShorts.slice(0, 6).map(short => (
+                    <ShortCard
+                      key={short.id}
+                      href={short.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        // Prevent the link from opening if the video is visible
+                        if (e.target.tagName === 'IFRAME') {
+                          e.preventDefault();
+                        }
+                      }}
+                      onMouseEnter={() => setHoveredShortId(short.id)}
+                      onMouseLeave={() => setHoveredShortId(null)}
+                    >
+                      <ShortCardImageContainer>
+                        <ShortCardImage
+                          src={short.thumbnail || getYouTubeThumbnail(short.id)}
+                          alt={short.title}
+                        />
+                        {hoveredShortId === short.id && (
+                          <ShortCardVideo
+                            src={`${short.videoUrl.replace('watch?v=', 'embed/')}?autoplay=1&mute=0&controls=0&loop=1&modestbranding=1&rel=0&showinfo=0&playlist=${short.id}`}
+                            title={short.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; autoplay"
+                            allowFullScreen
+                          />
+                        )}
+                        <ShortCardReelIcon>
+                          <SmartDisplayOutlinedIcon />
+                        </ShortCardReelIcon>
+                      </ShortCardImageContainer>
+                      <ShortCardCaption>{short.title}</ShortCardCaption>
+                    </ShortCard>
+                  ))
+                ) : (
+                  <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "20px" }}>
+                    <p>No shorts available at the moment. Please check back later.</p>
+                  </div>
+                )}
               </ShortsGrid>
               <ShortsSeeMoreLink to="/shorts">
                 SEE MORE <ArrowForwardIcon style={{ marginLeft: '5px', fontSize: '16px' }} />
@@ -2032,7 +2088,7 @@ const HomePage = () => {
               </SectionTitle>
               <GalleryGrid style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}> {/* Show 4 galleries per row */}
                 {galleries.slice(0, 4).map(gallery => (
-                  <GalleryItem 
+                  <GalleryItem
                     key={gallery._id}
                     image={gallery.images[0]?.url}
                     onClick={() => navigate(`/gallery/${gallery._id}`)}

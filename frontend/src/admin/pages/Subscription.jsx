@@ -29,7 +29,7 @@ const Subscription = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/subscribers", {
+      const res = await axios.get("https://api.kisansatta.com/api/subscribers", {
         params: {
           status: statusFilter,
           date: dateFilter,
@@ -48,7 +48,7 @@ const Subscription = () => {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/subscriber/edit/${id}`, { status: newStatus });
+      await axios.put(`https://api.kisansatta.com/api/subscriber/edit/${id}`, { status: newStatus });
       fetchUsers();
     } catch (err) {
       console.error(err);
@@ -57,7 +57,7 @@ const Subscription = () => {
 
   const deleteUser = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/subscriber/delete/${id}`);
+      await axios.delete(`https://api.kisansatta.com/api/subscriber/delete/${id}`);
       fetchUsers();
     } catch (err) {
       console.error(err);

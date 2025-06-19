@@ -42,6 +42,9 @@ export const createVideo = (videoData) => API.post('/videos', videoData);
 export const updateVideo = (id, videoData) => API.put(`/videos/${id}`, videoData);
 export const deleteVideo = (id) => API.delete(`/videos/${id}`);
 
+//Youtube API
+export const fetchYoutubeShorts = (params) => API.get('/youtube/shorts', {params});
+
 // Auth API
 export const login = (credentials) => API.post('/auth/login', credentials);
 export const register = (userData) => API.post('/auth/register', userData);
